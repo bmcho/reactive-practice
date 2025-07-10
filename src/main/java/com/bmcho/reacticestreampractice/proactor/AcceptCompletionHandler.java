@@ -1,4 +1,4 @@
-package com.bmcho.reacticestreampractice.Proactor;
+package com.bmcho.reacticestreampractice.proactor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

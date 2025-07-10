@@ -1,4 +1,4 @@
-package com.bmcho.reacticestreampractice.Proactor;
+package com.bmcho.reacticestreampractice.proactor;
 
 // Main
 public class ProactorMain {
