@@ -1,4 +1,4 @@
-package com.bmcho.reacticestreampractice.reactorpattern;
+package com.bmcho.reacticestreampractice.reactor;
 
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;

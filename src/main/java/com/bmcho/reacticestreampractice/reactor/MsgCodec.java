@@ -1,4 +1,4 @@
-package com.bmcho.reacticestreampractice.reactorpattern;
+package com.bmcho.reacticestreampractice.reactor;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
