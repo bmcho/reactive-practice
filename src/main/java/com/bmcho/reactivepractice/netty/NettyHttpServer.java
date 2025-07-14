@@ -6,16 +6,21 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.string.StringDecoder;
 import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.util.concurrent.*;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.EventExecutorGroup;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.FutureListener;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
-public class NettyEchoServer {
+public class NettyHttpServer {
 
     @SneakyThrows
     public static void main(String[] args) {
@@ -35,9 +40,9 @@ public class NettyEchoServer {
                             eventExecutors, new LoggingHandler(LogLevel.INFO)
                         );
                         ch.pipeline().addLast(
-                            new StringEncoder(),
-                            new StringDecoder(),
-                            new NettyEchoServerHandler()
+                            new HttpServerCodec(),
+                            new HttpObjectAggregator(1024 * 1024),
+                            new NettyHttpServerHandler()
                         );
 
                     }
