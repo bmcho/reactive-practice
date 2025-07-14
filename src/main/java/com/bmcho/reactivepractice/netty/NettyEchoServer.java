@@ -1,79 +1,65 @@
 package com.bmcho.reactivepractice.netty;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.*;
+import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.codec.string.StringEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.*;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-
-import java.net.InetSocketAddress;
-import java.nio.charset.StandardCharsets;
 
 @Slf4j
 public class NettyEchoServer {
 
-    private static ChannelInboundHandler echoHandler() {
-        return new ChannelInboundHandlerAdapter() {
-            @Override
-            public void channelRead(ChannelHandlerContext ctx, Object msg) {
-                if (msg instanceof ByteBuf) {
-                    try {
-                        var buf = (ByteBuf) msg;
-                        var len = buf.readableBytes();
-                        var charset = StandardCharsets.UTF_8;
-                        var body = buf.readCharSequence(len, charset);
-                        log.info("EchoHandler.channelRead: " + body);
-
-                        buf.readerIndex(0); // flip
-                        var result = buf.copy();
-                        ctx.writeAndFlush(result)
-                            .addListener(ChannelFutureListener.CLOSE);
-                    } finally {
-                        ReferenceCountUtil.release(msg);
-                    }
-                }
-            }
-        };
-    }
-
-    private static ChannelHandler acceptor(EventLoopGroup childGroup) {
-        var executorGroup = new DefaultEventExecutorGroup(4);
-
-        return new ChannelInboundHandlerAdapter() {
-            @Override
-            public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-                log.info("Acceptor.channelRead");
-                if (msg instanceof SocketChannel) {
-                    SocketChannel socketChannel = (SocketChannel) msg;
-                    socketChannel.pipeline().addLast(
-                        executorGroup, new LoggingHandler(LogLevel.INFO));
-                    socketChannel.pipeline().addLast(
-                        echoHandler()
-                    );
-                    childGroup.register(socketChannel);
-                }
-            }
-        };
-    }
-
+    @SneakyThrows
     public static void main(String[] args) {
         EventLoopGroup parentGroup = new NioEventLoopGroup();
         EventLoopGroup childGroup = new NioEventLoopGroup(4);
+        EventExecutorGroup eventExecutors = new DefaultEventExecutorGroup(4);
 
-        NioServerSocketChannel serverSocketChannel = new NioServerSocketChannel();
-        parentGroup.register(serverSocketChannel);
-        serverSocketChannel.pipeline().addLast(acceptor(childGroup));
+        try {
+            ServerBootstrap bootstrap = new ServerBootstrap();
+            bootstrap
+                .group(parentGroup, childGroup)
+                .channel(NioServerSocketChannel.class)
+                .childHandler(new ChannelInitializer<>() {
+                    @Override
+                    protected void initChannel(Channel ch) throws Exception {
+                        ch.pipeline().addLast(
+                            eventExecutors, new LoggingHandler(LogLevel.INFO)
+                        );
+                        ch.pipeline().addLast(
+                            new StringEncoder(),
+                            new StringDecoder(),
+                            new NettyEchoServerHandler()
+                        );
 
-        serverSocketChannel.bind(new InetSocketAddress(8080))
-            .addListener(future -> {
-                if (future.isSuccess()) {
-                    log.info("Server bound to port 8080");
-                }
-            });
+                    }
+                });
+
+            bootstrap.bind(8080).sync()
+                .addListener(new FutureListener<>() {
+                    @Override
+                    public void operationComplete(Future<Void> future) throws Exception {
+                        if (future.isSuccess()) {
+                            log.info("Success to bind 8080");
+                        } else {
+                            log.error("Fail to bind 8080");
+                        }
+                    }
+                }).channel().closeFuture().sync();
+
+
+        } finally {
+            parentGroup.shutdownGracefully();
+            childGroup.shutdownGracefully();
+        }
     }
+
 }
